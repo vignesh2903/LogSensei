@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatGPT Agents</title>
+        <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            margin: 0;
+            padding: 0;
+        }
+        .logo-container {
+            text-align: center;
+            padding: 0 0;
+        }
+        .logo {
+            max-width: 300px;
+            display: block;
+            margin: 0 auto;
+            padding: 0 0;
+        }
+        h1 {
+            font-size: 24px;
+            color: #333;
+            margin: 5px 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        h2 {
+            font-size: 18px;
+            color: #555;
+            margin-bottom: 10px;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            resize: vertical;
+        }
+        button {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #uploadFile {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #myFile {
+        width: 300px;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        #uploadStatus,
+        #answer_output {
+            color: #777;
+        }
+        #queryFormTwo, #answer_output_two, #headerQueryTwo, #headerSolutionTwo{
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="logo-container">
+        <img src="{{ url_for('static', filename='img/LogSensei.png') }}" alt="centered image"  class="logo"/>
+        <h1>Your AISensei to help you for log analysis</h1>
+    </div>
+    <div class="container">
+    <h2>Choose a log type:</h2>
+    <select name="logLevel" id="logLevel">
+        <option value="General Logs">General Logs</option>
+        <option value="GC Logs">GC Logs</option>
+        <option value="Thread Dump">Thread Dump</option>
+    </select>
+    <button onclick="sendLogLevel()">Send Log Type</button>
+    <p id="logLevelStatus"></p>
+<!--    my new code -->
+    <h2>Upload a Text File</h2>
+    <form id="uploadForm" enctype="multipart/form-data">
+        <input type="file" id="myFile" name="filename" style="width: 500px;">
+        <input type="submit" id="uploadFile" value="Upload" >
+    </form>
+    <p id="uploadStatus"></p>
+    <h2>Enter your query:</h2>
+    <form id="queryForm">
+         <textarea id="userQuery" name="userQuery" rows="5" cols="50"></textarea>
+        <button type="button" onclick="sendQuery()">Submit</button>
+    </form>
+    <h2>Solutions:</h2>
+    <textarea id="answer_output" rows="5" cols="50" disabled></textarea>
+
+    <h2 id="headerQueryTwo">Enter additional query:</h2>
+    <form id="queryFormTwo">
+        <textarea id="userQueryTwo" name="userQueryTwo" rows="5" cols="50" disabled></textarea>
+        <button type="button" onclick="sendQueryTwo()" disabled>Submit</button>
+    </form>
+    <h2 id="headerSolutionTwo">Solutions:</h2>
+    <textarea id="answer_output_two" rows="5" cols="50" disabled></textarea>
+    <button onclick="refreshPage()">New Log Analysis</button>
+    <!-- Button 2: Enable Text Area -->
+    <button onclick="newTopic()">New Topic</button>
+</div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $("#uploadForm").submit(function(e) {
+                e.preventDefault(); // Prevent default form submission
+                // AJAX request to check if the file is uploaded
+                $.ajax({
+                    url: "/check_upload",
+                    type: "POST",
+                    data: new FormData(this),
+                    processData: false,
+                    contentType: false,
+                    success: function(response) {
+                        $("#uploadStatus").text(response['message']);
+                         sessionStorage.setItem('fileName', response['fileName']);
+                    },
+                    error: function() {
+                        $("#uploadStatus").text("Error uploading file.");
+                    }
+                });
+            });
+        });
+    </script>
+    <script>
+        function showFormTwo() {
+            document.getElementById('queryFormTwo').style.display = 'block';
+            document.getElementById('answer_output_two').style.display = 'block';
+            document.getElementById('headerQueryTwo').style.display = 'block';
+            document.getElementById('headerSolutionTwo').style.display = 'block';
+        }
+        function sendQuery() {
+            const userQuery = document.getElementById("userQuery").value;
+            const logLevel = document.getElementById("logLevel").value;
+            const waitForAnswer = "Please wait for the answer"
+            $('#answer_output').text(waitForAnswer);
+            const fileName = sessionStorage.getItem('fileName')
+
+            const chatId = sessionStorage.getItem('chatId');
+            console.log(logLevel);
+            // Make an AJAX request to your Flask endpoint
+            $.post("/save_query", { query: userQuery, fileName: fileName, chatId: chatId, logLevel: logLevel }, function(response) {
+                // Display the response from Flask
+                $('#answer_output').text(response);
+            });
+            document.getElementById("userQueryTwo").removeAttribute("disabled");
+            document.getElementById("userQueryTwo").focus();
+            document.querySelector("#queryFormTwo button").removeAttribute("disabled");
+            document.getElementById("userQuery").setAttribute("disabled", "true");
+            document.getElementById("userQuery").blur();
+            document.querySelector("#queryForm button").setAttribute("disabled", "true");
+            showFormTwo();
+        }
+    </script>
+    <script>
+        function sendQueryTwo() {
+            const userQuery = document.getElementById("userQueryTwo").value;
+            const waitForAnswer = "Please wait for the answer"
+            const fileName = sessionStorage.getItem('fileName')
+
+            $('#answer_output_two').text(waitForAnswer);
+            // Make an AJAX request to your Flask endpoint
+            const chatId = sessionStorage.getItem('chatId')
+            // Make an AJAX request to your Flask endpoint
+            $.post("/save_query2", { query: userQuery , chatId: chatId, fileName: fileName}, function(response) {
+                // Display the response from Flask
+                sessionStorage.setItem('chatId', response['chatId'])
+                $("#answer_output_two").text(response['result']);
+            });
+
+<!--            $.post("/save_query", { query: userQuery }, function(response) {-->
+<!--                // Display the response from Flask-->
+<!--                $('#answer_output_two').text(response);-->
+<!--            });-->
+        }
+    </script>
+    <script>
+    function sendLogLevel() {
+        // Get the selected log level from the dropdown
+        var selectedLogLevel = $("#logLevel").val();
+
+        // Send the log level to the Flask route using AJAX
+        $.post("/loglevel", { logLevel: selectedLogLevel }, function(response) {
+            // Update the log level status on the page
+            $("#logLevelStatus").text("Log level sent: " + response);
+        });
+    }
+    </script>
+    <script>
+        // Function to refresh the page
+        function refreshPage() {
+            const fileName = sessionStorage.getItem('fileName')
+            $.post("/clear_data", { fileName: fileName }, function(response) {
+                // Display the response from Flask
+
+                console.log("session clear")
+
+            });
+            window.location.reload();
+            sessionStorage.clear();
+
+        }
+        function hideFormTwo() {
+            document.getElementById('queryFormTwo').style.display = 'none';
+            document.getElementById('answer_output_two').style.display = 'none';
+            document.getElementById('headerQueryTwo').style.display = 'none';
+            document.getElementById('headerSolutionTwo').style.display = 'none';
+        }
+        // Function to enable query first
+        function newTopic() {
+            document.getElementById("userQuery").removeAttribute("disabled");
+            document.getElementById("userQuery").focus();
+            document.querySelector("#queryForm button").removeAttribute("disabled");
+            document.getElementById("userQueryTwo").setAttribute("disabled", "true");
+            document.getElementById("userQueryTwo").blur();
+            document.querySelector("#queryFormTwo button").setAttribute("disabled", "true");
+            hideFormTwo();
+            const userQuery = document.getElementById("userQuery").value;
+
+            const chatId = sessionStorage.getItem('chatId')
+            // Make an AJAX request to your Flask endpoint
+            $.post("/save_query", { query: userQuery , chatId: chatId}, function(response) {
+                // Display the response from Flask
+
+                sessionStorage.setItem('chatId', response['chatId'])
+                $("#response").text(response['result']);
+            });
+        }
+    </script>
+    <!--UNCOMMENT THIS TO ENABLE ELASTIC APM
+    <script src="{{ url_for('static', filename='js/elastic-apm-rum.umd.min.js') }}" crossorigin></script>
+    <script>
+    elasticApm.init({
+        serviceName: 'my-service-name',
+        serverUrl: 'https://xxx.apm.us-west2.gcp.elastic-cloud.com:443',
+    })
+    </script>-->
+    <!-- Include the same JavaScript/jQuery code as before -->
+<!--    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>-->
+<!--    <script>-->
+<!--        $(document).ready(function() {-->
+<!--        $('#config-form').on('submit', function(e) {-->
+<!--            e.preventDefault();-->
+<!--            let formData = $(this).serialize();-->
+<!--            $.ajax({-->
+<!--                url: '/config',-->
+<!--                method: 'POST',-->
+<!--                data: formData,-->
+<!--                success: function(data) {-->
+<!--                    if (data.success) {-->
+<!--                        alert('Configuration saved successfully.');-->
+<!--                        $('#message-form').show();-->
+<!--                    } else {-->
+<!--                        alert('An error occurred while saving the configuration.');-->
+<!--                    }-->
+<!--                },-->
+<!--                error: function() {-->
+<!--                    alert('An error occurred while saving the configuration.');-->
+<!--                }-->
+<!--            });-->
+<!--        });-->
+<!--            $('#message-form').on('submit', function(e) {-->
+<!--                e.preventDefault();-->
+<!--                let userInput = $('#user-input').val();-->
+<!--                $('#conversation').append('<p><strong>User:</strong> ' + userInput + '</p>');-->
+<!--                $('#user-input').val('');-->
+<!--                $.ajax({-->
+<!--                    url: '/message',-->
+<!--                    method: 'POST',-->
+<!--                    data: {user_input: userInput},-->
+<!--                    success: function(data) {-->
+<!--                        let response = data.response;-->
+<!--                        $('#conversation').append('<p><strong>Agent:</strong> ' + response + '</p>');-->
+<!--                        let conversationDiv = document.getElementById('conversation');-->
+<!--                        conversationDiv.scrollTop = conversationDiv.scrollHeight;-->
+<!--                    }-->
+<!--                });-->
+<!--            });-->
+<!--        });-->
+<!--    </script>-->
+</body>
+</html>
